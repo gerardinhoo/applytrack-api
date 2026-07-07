@@ -1,4 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.application import Application
 from app.schemas.application import ApplicationCreate
 
 router = APIRouter()
@@ -9,13 +13,23 @@ applications = []
 def get_applications():
     return applications
 
+# Create application
 @router.post("/applications", status_code=201)
-def create_application(application: ApplicationCreate):
-    new_application = application.model_dump()
-    new_application["id"] = len(applications)
+def create_application(
+    application: ApplicationCreate,
+    db: Session = Depends(get_db),
+):
+    db_application = Application(
+        company=application.company,
+        position=application.position,
+        status=application.status,
+    )
 
-    applications.append(new_application)
-    return new_application 
+    db.add(db_application)
+    db.commit()
+    db.refresh(db_application)
+
+    return db_application 
 
 @router.get("/applications/count")
 def get_application_count():
