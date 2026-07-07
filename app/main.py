@@ -1,5 +1,10 @@
 from fastapi import FastAPI
 from app.routers import applications
+from app.database import engine, Base
+from app.models import application
+
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="ApplyTrack API",
