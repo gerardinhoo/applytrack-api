@@ -10,8 +10,8 @@ router = APIRouter()
 applications = []
 
 @router.get("/applications")
-def get_applications():
-    return applications
+def get_applications(db: Session = Depends(get_db)):
+    return db.query(Application).all()
 
 # Create application
 @router.post("/applications", status_code=201)
@@ -31,48 +31,74 @@ def create_application(
 
     return db_application 
 
-@router.get("/applications/count")
-def get_application_count():
-    return {
-        "count": len(applications)
-    }
     
 @router.get("/applications/{application_id}")
-def get_application(application_id: int):
-    
-    if application_id >= len(applications):
+def get_application(
+    application_id: int,
+    db: Session = Depends(get_db),
+):
+    application = (
+        db.query(Application)
+        .filter(Application.id == application_id)
+        .first()
+    )
+
+    if application is None:
         raise HTTPException(
             status_code=404,
-            detail="Application not found"
+            detail="Application not found",
         )
-    return applications[application_id]
+
+    return application
 
 
 @router.put("/applications/{application_id}")
-def update_application(application_id: int, updated_application: ApplicationCreate):
-       if application_id >= len(applications):
+def update_application(
+    application_id: int,
+    updated_application: ApplicationCreate,
+    db: Session = Depends(get_db),
+):
+    application = (
+        db.query(Application)
+        .filter(Application.id == application_id)
+        .first()
+    )
+
+    if application is None:
         raise HTTPException(
             status_code=404,
-            detail="Application not found"
+            detail="Application not found",
         )
-       
-       application_data = updated_application.model_dump()
-       application_data["id"] = application_id
 
-       applications[application_id] = application_data
+    application.company = updated_application.company
+    application.position = updated_application.position
+    application.status = updated_application.status
 
-       return application_data
+    db.commit()
+    db.refresh(application)
+
+    return application
 
 
 @router.delete("/applications/{application_id}", status_code=204)
-def delete_application(application_id: int):
-    if application_id >= len(applications):
+def delete_application(
+    application_id: int,
+    db: Session = Depends(get_db),
+):
+    application = (
+        db.query(Application)
+        .filter(Application.id == application_id)
+        .first()
+    )
+
+    if application is None:
         raise HTTPException(
             status_code=404,
-            detail="Application not found"
+            detail="Application not found",
         )
 
-    applications.pop(application_id)
+    db.delete(application)
+    db.commit()
 
     return None
     
