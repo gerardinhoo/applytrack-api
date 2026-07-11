@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://json.schemastore.org/cloudbuild.json
+
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/applytrack:$SHORT_SHA"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/applytrack:latest"
+      - "."
+
+images:
+  - "gcr.io/$PROJECT_ID/applytrack:$SHORT_SHA"
+  - "gcr.io/$PROJECT_ID/applytrack:latest"
