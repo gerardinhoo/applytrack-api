@@ -167,6 +167,15 @@ http://localhost:8000/docs
 
 ---
 
+## Docker Compose
+
+Run the application with Docker Compose:
+
+```bash
+docker compose up --build
+
+---
+
 ## Key Concepts Demonstrated
 
 - REST API design
