@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: applytrack-api
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: applytrack-api
+
+  template:
+    metadata:
+      labels:
+        app: applytrack-api
+
+    spec:
+      containers:
+        - name: applytrack-api
+
+          # Use your actual Google Cloud project ID.
+          image: gcr.io/applytrack-502115/applytrack:latest
+
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: applytrack-secrets
+                  key: database-url
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
