@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: applytrack-gke
+spec:
+  replicas: 1
+  selector:
+  matchlabels:
+    app: gcp
+  template:
+    metadata:
+      labels:
+        app: gcp
+    spec:
+      containers:
+        - name: applytrack-gke
+          image: gcr.io/$PROJECT_ID/applytrack:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: PORT
+              value: "5000"
