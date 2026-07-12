@@ -56,3 +56,22 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: applytrack-service
+
+spec:
+  type: LoadBalancer
+
+  selector:
+    app: applytrack-api
+
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
