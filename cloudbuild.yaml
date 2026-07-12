@@ -1,7 +1,9 @@
 # yaml-language-server: $schema=https://json.schemastore.org/cloudbuild.json
 
 steps:
+  # 1. Build the image
   - name: "gcr.io/cloud-builders/docker"
+    id: "Build image"
     args:
       - "build"
       - "-t"
@@ -10,9 +12,29 @@ steps:
       - "gcr.io/$PROJECT_ID/applytrack:latest"
       - "."
 
-images:
-  - "gcr.io/$PROJECT_ID/applytrack:$SHORT_SHA"
-  - "gcr.io/$PROJECT_ID/applytrack:latest"
+  # 2. Push the commit-specific image
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push commit image"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/applytrack:$SHORT_SHA"
+
+  # 3. Push latest
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push latest image"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/applytrack:latest"
+
+  # 4. Deploy to GKE
+  - name: "gcr.io/cloud-builders/gke-deploy"
+    id: "Deploy to GKE"
+    args:
+      - "run"
+      - "--filename=gke.yaml"
+      - "--image=gcr.io/$PROJECT_ID/applytrack:$SHORT_SHA"
+      - "--location=us-central1-a"
+      - "--cluster=applytrack"
 
 options:
   logging: CLOUD_LOGGING_ONLY
