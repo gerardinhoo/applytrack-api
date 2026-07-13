@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from app.routers import applications
 from app.database import engine, Base
 from app.models import application
@@ -14,12 +16,19 @@ app = FastAPI(
 
 app.include_router(applications.router)
 
+Instrumentator().instrument(app).expose(
+    app,
+    endpoint="/metrics",
+    include_in_schema=False,
+)
 
 @app.get("/")
 def root():
     return {"message": "ApplyTrack API is running"}
 
-
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+
+

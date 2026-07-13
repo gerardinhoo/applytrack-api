@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from app.config import ENABLE_TEST_ENDPOINTS
 
 from app.database import get_db
 from app.models.application import Application
@@ -8,6 +10,8 @@ from app.schemas.application import ApplicationCreate
 router = APIRouter()
 
 applications = []
+
+
 
 @router.get("/applications")
 def get_applications(db: Session = Depends(get_db)):
@@ -101,4 +105,20 @@ def delete_application(
     db.commit()
 
     return None
+
+
+@router.get("/test-error", tags=["Testing"])
+def test_error():
+    """
+    Intentionally returns HTTP 500 to validate monitoring dashboards.
+    Disabled by default.
+    """
+
+    if not ENABLE_TEST_ENDPOINTS:
+        raise HTTPException(status_code=404, detail="Endpoint not available.")
+
+    raise HTTPException(
+        status_code=500,
+        detail="Intentional test error for monitoring."
+    )
     
