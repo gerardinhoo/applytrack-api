@@ -2,11 +2,6 @@ from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.routers import applications
-from app.database import engine, Base
-from app.models import application
-
-
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="ApplyTrack API",
@@ -29,6 +24,3 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-
-
-

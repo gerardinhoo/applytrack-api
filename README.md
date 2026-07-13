@@ -12,7 +12,9 @@ ApplyTrack began as a focused CRUD API and evolved into a reliability-oriented p
 
 - CRUD REST API with Pydantic request validation
 - SQLAlchemy ORM with PostgreSQL persistence hosted on Neon
-- Seven automated API tests with pytest
+- Versioned database schema management with Alembic
+- Seven isolated API tests with pytest and an in-memory SQLite database
+- GitHub Actions checks for Python syntax and test execution
 - Docker image and Docker Compose local workflow
 - Google Cloud Build CI/CD with immutable commit-SHA image tags
 - Validated GKE deployment with a Kubernetes Deployment and LoadBalancer Service
@@ -26,11 +28,11 @@ ApplyTrack began as a focused CRUD API and evolved into a reliability-oriented p
 
 | Category | Technologies |
 | --- | --- |
-| Backend | Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy |
+| Backend | Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic |
 | Database | PostgreSQL, Neon |
-| Testing | pytest, FastAPI TestClient |
+| Testing | pytest, FastAPI TestClient, SQLite test database |
 | Containers | Docker, Docker Compose |
-| Cloud and CI/CD | Google Cloud Build, Container Registry, Google Cloud |
+| Cloud and CI/CD | GitHub Actions, Google Cloud Build, Container Registry, Google Cloud |
 | Kubernetes | GKE, Deployment, LoadBalancer Service, probes, resources, Secrets |
 | Observability | Prometheus, Grafana, `prometheus-fastapi-instrumentator`, PromQL |
 
@@ -82,12 +84,36 @@ DATABASE_URL=your_postgresql_connection_string
 
 Add `ENABLE_TEST_ENDPOINTS=true` only when running the controlled failure exercise locally. Do not commit the `.env` file.
 
+### Database migrations
+
+Apply the versioned schema before starting the API:
+
+```bash
+alembic upgrade head
+```
+
+For a pre-existing ApplyTrack database whose `applications` table already matches the initial migration, review the schema and record the baseline once without recreating the table:
+
+```bash
+alembic stamp head
+```
+
+`stamp` records the revision but does not change the schema. Use it only for an existing matching database. New or empty databases should use `alembic upgrade head`.
+
+After changing a SQLAlchemy model, generate and review a migration before applying it:
+
+```bash
+alembic revision --autogenerate -m "describe the schema change"
+alembic upgrade head
+```
+
 ### Python virtual environment
 
 ```bash
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -97,14 +123,16 @@ On Windows PowerShell, activate the environment with `venv\Scripts\Activate.ps1`
 
 ```bash
 docker build -t applytrack-api .
+docker run --rm --env-file .env applytrack-api alembic upgrade head
 docker run --env-file .env -p 8000:8000 applytrack-api
 ```
 
 ### Docker Compose
 
-Docker Compose starts the API, Prometheus, and Grafana:
+Docker Compose starts the API, Prometheus, and Grafana. The Prometheus data source and ApplyTrack dashboard are provisioned automatically when Grafana starts:
 
 ```bash
+docker compose run --rm api alembic upgrade head
 docker compose up --build
 ```
 
@@ -116,13 +144,15 @@ docker compose up --build
 
 ## Testing
 
-Run the test suite with a test-accessible `DATABASE_URL` configured:
+Run the test suite:
 
 ```bash
 pytest
 ```
 
-The current suite contains seven tests covering the root and health routes plus create, list, retrieve, update, and delete application behavior. This describes the tested behaviors and does not claim full code coverage.
+The current suite contains seven tests covering the root and health routes plus create, list, retrieve, update, and delete application behavior. Tests override FastAPI's database dependency with an in-memory SQLite database, and the schema is recreated for every test. This prevents test records from reaching Neon and prevents state from leaking between tests. It describes the tested behaviors and does not claim full code coverage.
+
+The [GitHub Actions workflow](.github/workflows/ci.yml) runs on every push and pull request. It uses Python 3.12, installs the project dependencies, checks that the Python files compile, validates an Alembic upgrade/downgrade cycle, and runs pytest. The CI job does not require a database secret because its migration check and tests use isolated SQLite databases.
 
 ## Reliability Objectives
 
@@ -136,14 +166,16 @@ An **SLI** is the measured signal, an **SLO** is its target, and an **error budg
 
 ## Observability
 
-FastAPI exposes Prometheus-compatible metrics at `/metrics`. In the local Compose environment, Prometheus scrapes the API every 15 seconds and Grafana reads the collected time series from Prometheus. The instrumentation library normalizes route labels to templates such as `/applications/{application_id}`, which avoids separate labels for every resource ID.
+FastAPI exposes Prometheus-compatible metrics at `/metrics`. In the local Compose environment, Prometheus scrapes the API every 15 seconds and Grafana reads the collected time series from Prometheus. The Prometheus data source and ApplyTrack dashboard are provisioned from version-controlled files under `monitoring/grafana/`, so recreating the containers does not require rebuilding the dashboard manually. The instrumentation library normalizes route labels to templates such as `/applications/{application_id}`, which avoids separate labels for every resource ID.
 
 The monitored signals cover traffic, latency, and errors. The Grafana work includes these panels:
 
 - Total HTTP Requests
 - Request Rate
 - p95 Request Latency
-- HTTP 5xx Error Rate
+- HTTP 5xx Error Rate as a ratio of failed responses to all responses
+
+The provisioned dashboard is read-only in Grafana. Changes should be made in `monitoring/grafana/dashboards/applytrack-api.json`, reviewed in version control, and loaded by restarting or recreating Grafana.
 
 Kubernetes saturation monitoring was outside the scope of this implementation.
 
@@ -219,7 +251,10 @@ applytrack-api/
 ├── app/                  # FastAPI application, models, schemas, and routes
 ├── tests/                # API tests
 ├── docs/                 # Reliability objectives and sample incident
-├── monitoring/           # Prometheus scrape configuration
+├── monitoring/           # Prometheus and provisioned Grafana configuration
+├── alembic/              # Versioned database migrations
+├── .github/workflows/    # GitHub Actions CI checks
+├── alembic.ini
 ├── Dockerfile
 ├── docker-compose.yml
 ├── cloudbuild.yaml
@@ -236,7 +271,7 @@ applytrack-api/
 - Building and deploying immutable images through Cloud Build and GKE
 - Configuring Kubernetes health probes, resource boundaries, Services, and Secrets
 - Defining user-focused SLIs, SLOs, and an error budget
-- Instrumenting FastAPI for Prometheus and building Grafana panels
+- Instrumenting FastAPI for Prometheus and provisioning Grafana dashboards as code
 - Applying PromQL counters, rates, and histogram quantiles to traffic, errors, and p95 latency
 - Validating monitoring behavior with a controlled failure and documenting the incident
 

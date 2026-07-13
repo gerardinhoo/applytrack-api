@@ -1,11 +1,4 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-client = TestClient(app)
-
-
-def test_create_application():
+def test_create_application(client):
     response = client.post(
         "/applications",
         json={
@@ -25,14 +18,14 @@ def test_create_application():
     assert "id" in data
 
 
-def test_get_applications():
+def test_get_applications(client):
     response = client.get("/applications")
 
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    assert response.json() == []
 
 
-def test_get_one_application():
+def test_get_one_application(client):
     create_response = client.post(
         "/applications",
         json={
@@ -50,7 +43,7 @@ def test_get_one_application():
     assert response.json()["id"] == application_id
 
 
-def test_update_application():
+def test_update_application(client):
     create_response = client.post(
         "/applications",
         json={
@@ -75,7 +68,7 @@ def test_update_application():
     assert response.json()["status"] == "Interview"
 
 
-def test_delete_application():
+def test_delete_application(client):
     create_response = client.post(
         "/applications",
         json={
