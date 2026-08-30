@@ -1,16 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
-from app.config import ENABLE_TEST_ENDPOINTS
 
+from app.config import ENABLE_TEST_ENDPOINTS
 from app.database import get_db
 from app.models.application import Application
 from app.schemas.application import ApplicationCreate
 
 router = APIRouter()
-
-applications = []
-
 
 
 @router.get("/applications")
